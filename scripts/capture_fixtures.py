@@ -1,22 +1,33 @@
-"""One-off: fetch /status, /examples, /tickets (all pages) once and save to fixtures/."""
-import json, sys
+"""Explicitly refresh saved fixtures using the reusable live reader."""
+import json
+import sys
 from pathlib import Path
-import httpx
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from agent.config import load_settings, ROOT
 
-s = load_settings()
-out = ROOT / "fixtures"; out.mkdir(exist_ok=True)
-with httpx.Client(base_url=s.base_url, headers=s.headers(), timeout=20) as c:
-    def get(path, **p):
-        r = c.get(path, params=p); print(path, p, r.status_code); r.raise_for_status(); return r.json()
-    (out / "status.json").write_text(json.dumps(get("/status"), indent=2, ensure_ascii=False))
-    (out / "examples.json").write_text(json.dumps(get("/examples"), indent=2, ensure_ascii=False))
-    items, cur = [], None
-    while True:
-        d = get("/tickets", status="all", **({"cursor": cur} if cur else {}))
-        items += d.get("tickets", d.get("items", []))
-        cur = d.get("next_cursor")
-        if not cur: break
-    (out / "tickets.json").write_text(json.dumps(items, indent=2, ensure_ascii=False))
-    print("tickets:", len(items))
+import httpx
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from agent.clients.helpdesk import HelpdeskClient
+from agent.config import ROOT, load_settings
+
+
+def main():
+    settings = load_settings()
+    output = ROOT / "fixtures"
+    output.mkdir(exist_ok=True)
+    with httpx.Client(base_url=settings.base_url, headers=settings.headers(),
+                      timeout=settings.raw["helpdesk"]["timeout_s"]) as transport:
+        client = HelpdeskClient(transport)
+        snapshot = {
+            "status.json": client.status(),
+            "examples.json": {"examples": client.examples()},
+            "tickets.json": client.tickets(status="all"),
+        }
+    for filename, data in snapshot.items():
+        (output / filename).write_text(
+            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"Saved {len(snapshot['tickets.json'])} tickets and "
+          f"{len(snapshot['examples.json']['examples'])} labelled examples.")
+
+
+if __name__ == "__main__":
+    main()

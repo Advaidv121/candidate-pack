@@ -33,6 +33,10 @@ must never be passed to Gemini or Jev.
 - [x] Environment variables and `config/settings.yaml` configured.
 - [x] Helpdesk `/status` checked successfully.
 - [x] Status, 10 labelled examples, and 30 practice tickets saved in `fixtures/`.
+- [x] Simple live reader in `clients/helpdesk.py` and fixture reader in
+  `clients/fixtures.py`; capture
+  script reuses the live reader. `scripts/inspect_tickets.py` reads fixtures by
+  default. Pagination and fixture filtering have two passing automated tests.
 
 Most processing modules are still placeholders. The helpdesk API check does not
 yet verify Gemini generation or the complete agent.
@@ -135,9 +139,10 @@ log entry.
 
 ## Step 7 — Add reliable delivery and the real helpdesk client
 
-- [ ] Implement `clients/helpdesk.py`: pagination, timeouts, and request pacing
-  below the API limit. Implement bounded 503 backoff and 429 `Retry-After` in
-  `retry.py`. Treat 409 as already handled; do not retry it. Surface permanent errors.
+- [ ] Extend the read-only `clients/helpdesk.py` with action posting and request
+  pacing below the API limit. Add and test bounded 503 backoff and 429
+  `Retry-After` handling in `retry.py`, including transport failures. Treat 409
+  as already handled; do not retry it. Surface permanent errors.
 - [ ] Add `src/agent/ledger.py` for durable tracking. Also check server handled
   state: a local ledger alone cannot prove whether a timed-out POST was saved.
 - [ ] Reconcile uncertain POST outcomes before resending. Test interruption,
