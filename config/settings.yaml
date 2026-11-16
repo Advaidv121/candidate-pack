@@ -1,0 +1,12 @@
+helpdesk:
+  timeout_s: 20
+  max_retries: 5
+  backoff_base_s: 1.0
+llm:
+  model: gemini/gemini-2.5-flash
+  temperature: 0.0
+  max_attempts: 2
+paths:
+  ledger: logs/ledger.json
+  run_log: logs/run.log
+  fixtures: fixtures
