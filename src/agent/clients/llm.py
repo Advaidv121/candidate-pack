@@ -1,4 +1,4 @@
-"""The only Gemini call: LiteLLM with a Pydantic response schema."""
+"""LiteLLM structured output; default is DeepSeek through fal.ai."""
 import json
 import os
 
@@ -18,11 +18,21 @@ def build_messages(ticket: dict) -> list[dict]:
 
 
 def generate(messages: list[dict], settings: Settings):
-    if not os.getenv("GEMINI_API_KEY"):
-        raise RuntimeError("Missing GEMINI_API_KEY")
+    if settings.llm_model.startswith("gemini/"):
+        key_name = "GEMINI_API_KEY"
+        connection = {"api_key": os.getenv(key_name)}
+    else:
+        key_name = "FAL_KEY"
+        connection = {
+            "api_key": "not-needed",
+            "api_base": settings.raw["llm"]["api_base"],
+            "extra_headers": {"Authorization": f"Key {os.getenv(key_name, '')}"},
+        }
+    if not os.getenv(key_name):
+        raise RuntimeError(f"Missing {key_name}")
     return completion(
-        model=settings.gemini_model,
-        api_key=os.environ["GEMINI_API_KEY"],
+        model=settings.llm_model,
+        **connection,
         messages=messages,
         response_format=LLMDecision,
         temperature=settings.raw["llm"]["temperature"],

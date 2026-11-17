@@ -4,7 +4,7 @@
 
 A Python agent, run with one command, that handles Roosterly helpdesk tickets with
 one action per ticket: `reply`, `handoff`, or `close`. Replies use only
-`knowledge/faq.md`. Gemini through LiteLLM generates the complete structured
+`knowledge/faq.md`. DeepSeek V4.1 Flash through fal.ai and LiteLLM generates the complete structured
 decision. LangGraph connects small, independently understandable nodes.
 
 **Jev only adds confidence.** It does not choose the action, rewrite an answer,
@@ -38,7 +38,8 @@ must never be passed to Gemini or Jev.
   script reuses the live reader. `scripts/inspect_tickets.py` reads fixtures by
   default. Pagination and fixture filtering have two passing automated tests.
 
-The Gemini preview graph now works with three saved tickets; see
+The preview graph works with three saved tickets tested on Gemini;
+DeepSeek V4.1 Flash through fal.ai is now the default and passed a live T005 preview; see
 `notes/llm_wiring.md` for the wiring and results. Most remaining modules are
 placeholders; the complete agent is not yet implemented.
 

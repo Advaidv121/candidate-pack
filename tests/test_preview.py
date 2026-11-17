@@ -28,7 +28,7 @@ def response(content):
 def test_preview_sends_schema_and_excludes_labels(monkeypatch):
     def complete(**kwargs):
         assert kwargs["response_format"] is LLMDecision
-        assert kwargs["model"] == SETTINGS.gemini_model
+        assert kwargs["model"] == SETTINGS.llm_model
         ticket = json.loads(kwargs["messages"][1]["content"])["ticket"]
         assert set(ticket) == {"id", "subject", "body", "customer_plan"}
         assert ticket["body"] == TICKET["body"]
@@ -52,6 +52,24 @@ def test_invalid_output_reports_validation_error(monkeypatch):
     with pytest.raises(ValidationError):
         build_preview_graph(SETTINGS).invoke({"ticket": TICKET})
     assert calls == [2]
+
+
+def test_fal_uses_router_key_and_structured_output(monkeypatch):
+    settings = Settings("", "", "", "", "openai/deepseek/deepseek-v4.1-flash",
+                        {"llm": {"temperature": 0,
+                                 "api_base": "https://fal.run/openrouter/router/openai/v1"}})
+
+    def complete(**kwargs):
+        assert kwargs["model"] == settings.llm_model
+        assert kwargs["api_base"] == settings.raw["llm"]["api_base"]
+        assert kwargs["extra_headers"] == {"Authorization": "Key test-fal-key"}
+        assert kwargs["response_format"] is LLMDecision
+        return response(json.dumps(DECISION))
+
+    monkeypatch.setenv("FAL_KEY", "test-fal-key")
+    monkeypatch.setattr("agent.clients.llm.completion", complete)
+    result = build_preview_graph(settings).invoke({"ticket": TICKET})
+    assert result["decision"].action == "handoff"
 
 
 @pytest.mark.parametrize("changes", [

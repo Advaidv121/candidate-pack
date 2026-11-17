@@ -1,4 +1,4 @@
-"""Call Gemini and return a validated decision."""
+"""Call the model and return a validated decision."""
 
 from agent.clients.llm import build_messages, generate
 from agent.config import Settings

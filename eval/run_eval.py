@@ -31,7 +31,7 @@ def main():
     sources = ("prompts/system.md", "knowledge/faq.md",
                "src/agent/schemas.py", "fixtures/examples.json")
     report = {
-        "model": settings.gemini_model,
+        "model": settings.llm_model,
         "llm_settings": settings.raw["llm"],
         "started_at_utc": stamp,
         "source_hashes": {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest()

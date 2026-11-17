@@ -3,7 +3,8 @@ helpdesk:
   max_retries: 5
   backoff_base_s: 1.0
 llm:
-  model: gemini/gemini-3.1-flash-lite
+  model: openai/deepseek/deepseek-v4.1-flash
+  api_base: https://fal.run/openrouter/router/openai/v1
   temperature: 0.0
 paths:
   ledger: logs/ledger.json

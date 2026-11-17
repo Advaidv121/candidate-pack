@@ -26,7 +26,7 @@ def main():
     for ticket_id in args.ticket_ids:
         state = graph.invoke({"ticket": tickets[ticket_id]})
         preview = {
-            "model": settings.gemini_model,
+            "model": settings.llm_model,
             "input": {"ticket": state["model_ticket"]},
             "decision": state["decision"].model_dump(),
             "usage": state["usage"],

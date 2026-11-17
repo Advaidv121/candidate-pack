@@ -15,7 +15,7 @@ class Settings:
     api_key: str
     email: str
     name: str
-    gemini_model: str
+    llm_model: str
     raw: dict
 
     def headers(self) -> dict:
@@ -36,6 +36,6 @@ def load_settings() -> Settings:
         api_key=os.environ["HELPDESK_API_KEY"],
         email=os.environ["HELPDESK_EMAIL"],
         name=os.getenv("HELPDESK_CANDIDATE_NAME", ""),
-        gemini_model=os.getenv("GEMINI_MODEL", raw["llm"]["model"]),
+        llm_model=os.getenv("LLM_MODEL", raw["llm"]["model"]),
         raw=raw,
     )
