@@ -1,4 +1,6 @@
 .env
+notes/
+eval/results/
 logs/*
 !logs/.gitkeep
 __pycache__/
@@ -6,5 +8,4 @@ __pycache__/
 .venv/
 ledger.*
 .DS_Store
-.venv/
 *.egg-info/
