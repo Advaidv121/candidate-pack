@@ -106,12 +106,27 @@ the user’s request; payment-detail protection remains an unmet delivery requir
 
 ## Step 5 — Add Jev as an independent score
 
-- [ ] Read the TypeSafe integration skill and current Jev documentation.
-- [ ] Configure `JEV_API_KEY` and define the scoring question in
+- [x] Read the TypeSafe integration skill and current Jev documentation.
+- [x] Configure `JEV_API_KEY` and define the scoring questions in
   `config/jev_questions.yaml`: confidence that the proposed decision is supported
   by the FAQ and follows the client rules. Verify what the returned score means.
-- [ ] Implement `clients/jev.py` and `nodes/score.py`. Supply the ticket,
-  FAQ/rules, and validated decision; attach only confidence.
+- [x] Implement `clients/jev.py` and `nodes/score.py`. Supply the ticket,
+  FAQ/rules, and validated decision; add scores without changing the decision.
+  Uses LiteLLM systemone with typesafe/jev-1.14.0. Five Noul questions check
+  action, language, category, priority, and grounding in one call. Action
+  probability is exposed as confidence; separate scores remain visible.
+  No threshold changes the action. This confidence is not overall reply quality.
+  Enable with `scripts/preview_ticket.py T005 --score`. Local integration tests
+  pass. Three approved live checks succeeded: FAQ reply 0.94, refund handoff
+  0.47, deliberately unsupported reply 0.02. Scores never changed the decisions.
+  Rechecking those same outputs with separate questions: action scores were
+  0.99 / 0.98 / 0.95, while grounding was 0.95 / 0.76 / 0.02. The invented
+  reply has an appropriate reply action but unsupported content. See ignored
+  logs/jev_checks_split.json. These checks verify behavior, not calibration.
+  Ten saved outputs and nine single-field probes were also scored. Known gaps:
+  language checks the label, not reply text; incorrect arithmetic received a
+  middling grounding score. Next scoring improvement: check reply language
+  separately. Exact calculations need deterministic verification if introduced.
 - [ ] Bound scoring retries. If scoring fails, record the failure and omit optional
   confidence; do not invent a score or change the decision.
 

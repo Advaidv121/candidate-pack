@@ -1,0 +1,21 @@
+action:
+  type: noul
+  instructions: Does decision.action fit the customer's request under the supplied support policy?
+  criteria:
+    'true': Reply is appropriate for an FAQ-covered request, handoff for a mandatory human case or unsupported request, and close for spam or empty content. Judge the action separately from the wording of the generated text.
+    'false': The chosen action contradicts the support rules or the customer's substantive request.
+language:
+  type: noul
+  instructions: Does decision.language match the customer's substantive message in ticket?
+category:
+  type: noul
+  instructions: Does decision.category fit the main issue in ticket under the policy's category definitions?
+priority:
+  type: noul
+  instructions: Does decision.priority fit the impact reported in ticket under the policy's priority definitions?
+grounding:
+  type: noul
+  instructions: Are the factual claims in decision supported by ticket or faq?
+  criteria:
+    'true': Factual claims and procedural instructions follow from the supplied evidence. Courtesy and requests for a human to investigate are allowed without claiming a resolution.
+    'false': The output invents features, promises, causes, account changes, or procedural steps absent from the supplied evidence.

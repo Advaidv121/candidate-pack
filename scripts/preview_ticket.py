@@ -13,6 +13,7 @@ from agent.graph import build_preview_graph
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("ticket_ids", nargs="+", help="Saved IDs, e.g. T005 T003 T011")
+    parser.add_argument("--score", action="store_true", help="Add Jev confidence through LiteLLM")
     args = parser.parse_args()
     source = FixtureHelpdeskClient(ROOT / "fixtures")
     tickets = {t["id"]: t for t in source.tickets(status="all")}
@@ -20,7 +21,7 @@ def main():
     if unknown:
         parser.error("Unknown ticket IDs: " + ", ".join(sorted(unknown)))
     settings = load_settings()
-    graph = build_preview_graph(settings)
+    graph = build_preview_graph(settings, with_score=args.score)
     output_dir = ROOT / "logs/previews"
     output_dir.mkdir(parents=True, exist_ok=True)
     for ticket_id in args.ticket_ids:
@@ -31,6 +32,9 @@ def main():
             "decision": state["decision"].model_dump(),
             "usage": state["usage"],
         }
+        if args.score:
+            preview["confidence"] = state["confidence"]
+            preview["scores"] = state["scores"]
         text = json.dumps(preview, ensure_ascii=False, indent=2)
         (output_dir / f"{ticket_id}.json").write_text(text, encoding="utf-8")
         print(ticket_id, state["decision"].action, state["decision"].language,

@@ -50,6 +50,9 @@ priority:
   establish a money problem.
 
 Use evidence of impact, not words such as URGENT alone.
+A request needing specialist or compliance review does not automatically mean
+there is an urgent risk. Consider the impact described in the ticket, and reserve
+P1 for evidence of a serious incident or legal/security risk.
 
 ## Return
 

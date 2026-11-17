@@ -10,3 +10,5 @@ paths:
   ledger: logs/ledger.json
   run_log: logs/run.log
   fixtures: fixtures
+jev:
+  model: typesafe/jev-1.14.0
