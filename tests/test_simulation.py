@@ -6,6 +6,7 @@ import httpx
 from agent.clients.helpdesk import HelpdeskClient
 from agent.config import ROOT, Settings
 from agent.main import run_tickets
+from agent.redaction import contains_payment_details
 from agent.schemas import LLMDecision
 
 SETTINGS = Settings("", "", "", "", "test", {})
@@ -75,7 +76,13 @@ def test_30_tickets_deliver_actions_and_rerun_skips(tmp_path, monkeypatch):
 
     entries = [json.loads(line) for line in log_path.read_text().splitlines()]
     assert len(entries) == 30
-    assert all("body" not in entry and "reason" not in entry for entry in entries)
+    for entry in entries:
+        assert entry["outcome"] == "delivered"
+        assert entry["action"] in ("reply", "handoff", "close")
+        assert "input" in entry and "body" in entry["input"]
+        assert "decision" in entry and "reason" in entry["decision"]
+        assert "language" in entry["decision"]
+        assert not contains_payment_details(json.dumps(entry))
 
 
 def test_failure_logs_safe_error_and_continues(tmp_path, monkeypatch):
