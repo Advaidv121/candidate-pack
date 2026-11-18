@@ -28,7 +28,7 @@ cp .env.example .env
 * **Process specific tickets:** `make run ARGS='--ids T001 T005'`
 * **Reset practice tickets:** `make run ARGS='--reset'`
 * **Dry-run preview (no API posting):** `python scripts/preview_ticket.py T005`
-* **Run automated test suite (28 tests):** `make test`
+* **Run automated test suite:** `make test`
 * **Run labelled benchmark evaluation:** `python eval/run_eval.py`
 
 *(Optional)* Langfuse observability is activated automatically when `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are populated in `.env`.
@@ -45,6 +45,9 @@ cp .env.example .env
    Evaluates action fit and policy alignment via the TypeSafe SDK (`src/agent/clients/jev.py`). Scoring runs in an isolated subgraph with dedicated retries (`score_with_retries` in `src/agent/graph.py`). Jev confidence is diagnostic and decoupled from execution; scoring failures or timeouts never block ticket delivery.
 3. **REDACT (Data Privacy & Guardrails):**  
    Sensitive payment details (credit cards, IBANs, CVCs, expiration dates) are sanitized before prompts reach the LLM and before decisions are written to logs (`src/agent/redaction.py`). Redaction runs out-of-the-box via high-precision patterns and optionally leverages **Microsoft Presidio** if installed. In `src/agent/nodes/deliver.py`, a pre-flight circuit-breaker (`contains_payment_details`) blocks any delivery payload containing leaked payment data.
+
+### Dutch reply verification
+A non-Dutch speaker can run `python scripts/preview_ticket.py T005 --score` without posting to the helpdesk: Jev assesses whether both the language label and the actual reply match the customer's language, and independently scores factual grounding against the ticket and `knowledge/faq.md`. Quoted Dutch UI labels are allowed in English/German replies, and internal English handoff notes are excluded from reply-language assessment; these scores are diagnostic evidence, not a guarantee of linguistic correctness or exact menu-path preservation.
 
 ### Workflow Architecture (LangGraph State Pipeline)
 Two state graphs in `src/agent/graph.py` share a typed `TicketState`:

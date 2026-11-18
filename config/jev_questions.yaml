@@ -6,7 +6,10 @@ action:
     'false': The chosen action contradicts the support rules or the customer's substantive request.
 language:
   type: noul
-  instructions: Does decision.language match the customer's substantive message in ticket?
+  instructions: Does decision.language match the customer's substantive message in ticket, and, for reply actions, is decision.draft_reply actually written in that same language?
+  criteria:
+    'true': The language label matches the customer's substantive message. For reply actions, every substantive explanatory sentence in decision.draft_reply is in that language. Quoted UI labels, product names, URLs, and short parenthetical translations may be in another language. For handoff and close actions, assess only the language label; the English handoff_note is internal and is not a customer-facing reply.
+    'false': The language label differs from the customer's substantive message, or a reply contains substantive explanatory sentences in another language. A matching language label, greeting, or quoted UI labels do not compensate for instructions written in the wrong language.
 category:
   type: noul
   instructions: Does decision.category fit the main issue in ticket under the policy's category definitions?
