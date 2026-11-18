@@ -11,9 +11,6 @@ class FixtureHelpdeskClient:
     def _read(self, filename: str):
         return json.loads((self.directory / filename).read_text(encoding="utf-8"))
 
-    def status(self) -> dict:
-        return self._read("status.json")
-
     def examples(self) -> list[dict]:
         return self._read("examples.json")["examples"]
 

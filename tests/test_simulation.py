@@ -1,8 +1,8 @@
 import json
 
-from agent.clients.fake_helpdesk import FakeHelpdeskClient
+from agent.clients.local_helpdesk import LocalHelpdeskClient
 from agent.config import ROOT, Settings
-from agent.main import run_simulation
+from agent.main import run_tickets
 from agent.schemas import LLMDecision
 
 SETTINGS = Settings("", "", "", "", "test", {})
@@ -20,14 +20,14 @@ def test_30_tickets_persist_actions_and_rerun_skips_models(tmp_path, monkeypatch
     original = (ROOT / "fixtures/tickets.json").read_bytes()
     calls = []
 
-    def draft(state, settings):
+    def decide(state, settings):
         calls.append(state["ticket"]["id"])
         action = ("reply", "handoff", "close")[len(calls) % 3]
         return {"decision": decision(action), "model_ticket": state["ticket"]}
 
-    monkeypatch.setattr("agent.graph.draft", draft)
+    monkeypatch.setattr("agent.graph.decide", decide)
     monkeypatch.setattr("agent.nodes.score.evaluate", lambda *args: {"action": 0.01})
-    first = run_simulation(SETTINGS, FakeHelpdeskClient(ROOT / "fixtures", outcomes_path),
+    first = run_tickets(SETTINGS, LocalHelpdeskClient(ROOT / "fixtures", outcomes_path),
                            log_path, with_score=True)
     assert first == {"simulated": 30, "skipped": 0, "error": 0}
     saved = outcomes_path.read_bytes()
@@ -44,8 +44,8 @@ def test_30_tickets_persist_actions_and_rerun_skips_models(tmp_path, monkeypatch
     def unexpected(*args, **kwargs):
         raise AssertionError("Already handled tickets must not call models")
 
-    monkeypatch.setattr("agent.graph.draft", unexpected)
-    second = run_simulation(SETTINGS, FakeHelpdeskClient(ROOT / "fixtures", outcomes_path), log_path)
+    monkeypatch.setattr("agent.graph.decide", unexpected)
+    second = run_tickets(SETTINGS, LocalHelpdeskClient(ROOT / "fixtures", outcomes_path), log_path)
     assert second == {"simulated": 0, "skipped": 30, "error": 0}
     assert outcomes_path.read_bytes() == saved
     assert (ROOT / "fixtures/tickets.json").read_bytes() == original
@@ -55,15 +55,15 @@ def test_30_tickets_persist_actions_and_rerun_skips_models(tmp_path, monkeypatch
 
 
 def test_failure_logs_safe_error_and_continues(tmp_path, monkeypatch):
-    def draft(state, settings):
+    def decide(state, settings):
         if state["ticket"]["id"] == "T003":
             raise RuntimeError("Private provider request contents")
         return {"decision": decision("reply")}
 
-    monkeypatch.setattr("agent.graph.draft", draft)
-    client = FakeHelpdeskClient(ROOT / "fixtures", tmp_path / "outcomes.json")
+    monkeypatch.setattr("agent.graph.decide", decide)
+    client = LocalHelpdeskClient(ROOT / "fixtures", tmp_path / "outcomes.json")
     log_path = tmp_path / "run.jsonl"
-    result = run_simulation(SETTINGS, client, log_path, ["T003", "T005"])
+    result = run_tickets(SETTINGS, client, log_path, ["T003", "T005"])
     assert result == {"simulated": 1, "skipped": 0, "error": 1}
     assert "T003" not in client.outcomes
     assert "Private" not in log_path.read_text()

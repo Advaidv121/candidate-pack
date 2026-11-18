@@ -15,7 +15,7 @@ def protect(value):
                   "[payment detail removed]", value, flags=re.I)
 
 
-def draft(state: TicketState, settings: Settings) -> dict:
+def decide(state: TicketState, settings: Settings) -> dict:
     ticket = {key: state["ticket"][key]
               for key in ("id", "subject", "body", "customer_plan")}
     ticket = {k: protect(v) for k, v in ticket.items()}

@@ -5,7 +5,7 @@ from pathlib import Path
 from agent.clients.fixtures import FixtureHelpdeskClient
 
 
-class FakeHelpdeskClient(FixtureHelpdeskClient):
+class LocalHelpdeskClient(FixtureHelpdeskClient):
     def __init__(self, directory: Path, outcomes_path: Path):
         super().__init__(directory)
         self.outcomes_path = outcomes_path

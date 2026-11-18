@@ -1,4 +1,4 @@
-"""Map the existing decision to a simulated action and API-shaped body."""
+"""Send the validated decision through the selected helpdesk client."""
 import re
 
 from agent.clients.helpdesk import HelpdeskClient
@@ -6,7 +6,7 @@ from agent.schemas import PostBody
 from agent.state import TicketState
 
 
-def act(state: TicketState, client) -> dict:
+def deliver(state: TicketState, client) -> dict:
     fields = state["decision"].model_dump(exclude={"action"})
     fields["confidence"] = state.get("confidence")
     body = PostBody.model_validate(fields)

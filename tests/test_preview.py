@@ -48,7 +48,7 @@ def test_invalid_output_reports_validation_error(monkeypatch):
         calls.append(len(messages))
         return response("invalid JSON")
 
-    monkeypatch.setattr("agent.nodes.draft.generate", generate)
+    monkeypatch.setattr("agent.nodes.decide.generate", generate)
     with pytest.raises(ValidationError):
         build_preview_graph(SETTINGS).invoke({"ticket": TICKET})
     assert calls == [2]
@@ -87,7 +87,7 @@ def test_jev_uses_litellm_and_only_adds_score(monkeypatch):
                                         for name in kwargs["questions"]})
 
     monkeypatch.setenv("JEV_API_KEY", "test-jev-key")
-    monkeypatch.setattr("agent.nodes.draft.generate", lambda *args: response(json.dumps(DECISION)))
+    monkeypatch.setattr("agent.nodes.decide.generate", lambda *args: response(json.dumps(DECISION)))
     monkeypatch.setattr("agent.clients.jev.systemone", systemone)
     result = build_preview_graph(settings, with_score=True).invoke({"ticket": TICKET})
     assert result["confidence"] == 0.12
@@ -98,7 +98,7 @@ def test_jev_failure_is_an_error_not_a_score(monkeypatch):
     def fail(*args):
         raise RuntimeError("Scoring unavailable")
 
-    monkeypatch.setattr("agent.nodes.draft.generate", lambda *args: response(json.dumps(DECISION)))
+    monkeypatch.setattr("agent.nodes.decide.generate", lambda *args: response(json.dumps(DECISION)))
     monkeypatch.setattr("agent.nodes.score.evaluate", fail)
     with pytest.raises(RuntimeError, match="Scoring unavailable"):
         build_preview_graph(SETTINGS, with_score=True).invoke({"ticket": TICKET})
