@@ -11,4 +11,4 @@ paths:
   run_log: logs/run.log
   fixtures: fixtures
 jev:
-  model: typesafe/jev-1.14.0
+  model: jev-1.14.0

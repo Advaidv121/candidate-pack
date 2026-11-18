@@ -2,6 +2,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from langchain_core.exceptions import OutputParserException
 from pydantic import ValidationError
 
 from agent.config import Settings
@@ -20,14 +21,13 @@ DECISION = dict(action="handoff", language="en", category="billing", priority="P
 
 
 def response(content):
-    return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
-        usage=SimpleNamespace(prompt_tokens=100, completion_tokens=20, total_tokens=120))
+    return {"choices": [{"message": {"role": "assistant", "content": content}}],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}}
 
 
 def test_preview_sends_schema_and_excludes_labels(monkeypatch):
     def complete(**kwargs):
-        assert kwargs["response_format"] is LLMDecision
+        assert kwargs["response_format"]["json_schema"]["name"] == "LLMDecision"
         assert kwargs["model"] == SETTINGS.llm_model
         ticket = json.loads(kwargs["messages"][1]["content"])["ticket"]
         assert set(ticket) == {"id", "subject", "body", "customer_plan"}
@@ -36,7 +36,7 @@ def test_preview_sends_schema_and_excludes_labels(monkeypatch):
         return response(json.dumps(DECISION))
 
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr("agent.clients.llm.completion", complete)
+    monkeypatch.setattr("litellm.completion", complete)
     result = build_preview_graph(SETTINGS).invoke({"ticket": TICKET})
     assert result["decision"].action == "handoff"
 
@@ -44,12 +44,13 @@ def test_preview_sends_schema_and_excludes_labels(monkeypatch):
 def test_invalid_output_reports_validation_error(monkeypatch):
     calls = []
 
-    def generate(messages, settings):
-        calls.append(len(messages))
+    def complete(**kwargs):
+        calls.append(len(kwargs["messages"]))
         return response("invalid JSON")
 
-    monkeypatch.setattr("agent.nodes.decide.generate", generate)
-    with pytest.raises(ValidationError):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr("litellm.completion", complete)
+    with pytest.raises(OutputParserException):
         build_preview_graph(SETTINGS).invoke({"ticket": TICKET})
     assert calls == [2]
 
@@ -63,23 +64,22 @@ def test_fal_uses_router_key_and_structured_output(monkeypatch):
         assert kwargs["model"] == settings.llm_model
         assert kwargs["api_base"] == settings.raw["llm"]["api_base"]
         assert kwargs["extra_headers"] == {"Authorization": "Key test-fal-key"}
-        assert kwargs["response_format"] is LLMDecision
+        assert kwargs["response_format"]["json_schema"]["name"] == "LLMDecision"
         return response(json.dumps(DECISION))
 
     monkeypatch.setenv("FAL_KEY", "test-fal-key")
-    monkeypatch.setattr("agent.clients.llm.completion", complete)
+    monkeypatch.setattr("litellm.completion", complete)
     result = build_preview_graph(settings).invoke({"ticket": TICKET})
     assert result["decision"].action == "handoff"
 
 
-def test_jev_uses_litellm_and_only_adds_score(monkeypatch):
+def test_jev_uses_typesafe_and_only_adds_score(monkeypatch):
     settings = Settings("", "", "", "", SETTINGS.llm_model,
                         {"llm": {"temperature": 0},
                          "jev": {"model": "typesafe/jev-1.14.0"}})
 
-    def systemone(**kwargs):
+    def systemone(self, **kwargs):
         assert kwargs["model"] == "typesafe/jev-1.14.0"
-        assert kwargs["api_key"] == "test-jev-key"
         assert kwargs["state"]["decision"] == DECISION
         assert "label" not in kwargs["state"]["ticket"]
         assert set(kwargs["questions"]) == {"action", "language", "category", "priority", "grounding"}
@@ -87,8 +87,8 @@ def test_jev_uses_litellm_and_only_adds_score(monkeypatch):
                                         for name in kwargs["questions"]})
 
     monkeypatch.setenv("JEV_API_KEY", "test-jev-key")
-    monkeypatch.setattr("agent.nodes.decide.generate", lambda *args: response(json.dumps(DECISION)))
-    monkeypatch.setattr("agent.clients.jev.systemone", systemone)
+    monkeypatch.setattr("agent.nodes.decide.generate", lambda *args: (LLMDecision.model_validate(DECISION), {}))
+    monkeypatch.setattr("agent.clients.jev.TypeSafeClient.system_one", systemone)
     result = build_preview_graph(settings, with_score=True).invoke({"ticket": TICKET})
     assert result["confidence"] == 0.12
     assert result["decision"].model_dump() == DECISION
@@ -98,7 +98,7 @@ def test_jev_failure_is_an_error_not_a_score(monkeypatch):
     def fail(*args):
         raise RuntimeError("Scoring unavailable")
 
-    monkeypatch.setattr("agent.nodes.decide.generate", lambda *args: response(json.dumps(DECISION)))
+    monkeypatch.setattr("agent.nodes.decide.generate", lambda *args: (LLMDecision.model_validate(DECISION), {}))
     monkeypatch.setattr("agent.nodes.score.evaluate", fail)
     with pytest.raises(RuntimeError, match="Scoring unavailable"):
         build_preview_graph(SETTINGS, with_score=True).invoke({"ticket": TICKET})

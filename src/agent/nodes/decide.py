@@ -20,10 +20,10 @@ def decide(state: TicketState, settings: Settings) -> dict:
     # Send only the fields the model needs; raw metadata stays local.
     ticket = ticket_in.to_model_ticket().model_dump()
     ticket = {k: protect(v) for k, v in ticket.items()}
-    response = generate(build_messages(ticket), settings)
-    decision = LLMDecision.model_validate_json(response.choices[0].message.content or "")
+    decision, token_usage = generate(build_messages(ticket), settings)
     # Mask echoed payment details before scoring or delivery.
     decision = LLMDecision.model_validate({k: protect(v) for k, v in decision.model_dump().items()})
-    usage = {key: getattr(response.usage, key, 0) or 0
-             for key in ("prompt_tokens", "completion_tokens", "total_tokens")}
+    usage = {"prompt_tokens": token_usage.get("input_tokens", 0),
+             "completion_tokens": token_usage.get("output_tokens", 0),
+             "total_tokens": token_usage.get("total_tokens", 0)}
     return {"model_ticket": ticket, "decision": decision, "usage": usage}

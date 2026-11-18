@@ -2,7 +2,7 @@
 import json
 import os
 
-from litellm import completion
+from langchain_litellm import ChatLiteLLM
 
 from agent.config import ROOT, Settings
 from agent.schemas import LLMDecision
@@ -20,22 +20,29 @@ def build_messages(ticket: dict) -> list[dict]:
 def generate(messages: list[dict], settings: Settings):
     if settings.llm_model.startswith("gemini/"):
         key_name = "GEMINI_API_KEY"
-        connection = {"api_key": os.getenv(key_name)}
+        api_key = os.getenv(key_name)
+        api_base = None
+        extra_headers = None
     else:
         key_name = "FAL_KEY"
-        connection = {
-            "api_key": "not-needed",
-            "api_base": settings.raw["llm"]["api_base"],
-            "extra_headers": {"Authorization": f"Key {os.getenv(key_name, '')}"},
-        }
+        api_key = "not-needed"
+        api_base = settings.raw["llm"]["api_base"]
+        extra_headers = {"Authorization": f"Key {os.getenv(key_name, '')}"}
     if not os.getenv(key_name):
         raise RuntimeError(f"Missing {key_name}")
-    return completion(
+    model = ChatLiteLLM(
         model=settings.llm_model,
-        **connection,
-        messages=messages,
-        response_format=LLMDecision,
+        api_key=api_key,
+        api_base=api_base,
+        extra_headers=extra_headers,
         temperature=settings.raw["llm"]["temperature"],
-        timeout=60,
-        num_retries=0,
+        request_timeout=60,
+        max_retries=0,
+        model_kwargs={"num_retries": 0},
     )
+    result = model.with_structured_output(LLMDecision, include_raw=True).invoke(messages)
+    if result["parsing_error"] is not None:
+        raise result["parsing_error"]
+    if result["parsed"] is None:
+        raise ValueError("Model did not return a ticket decision")
+    return result["parsed"], result["raw"].usage_metadata or {}
