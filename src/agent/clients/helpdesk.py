@@ -1,8 +1,10 @@
 import httpx
 
+from agent.schemas import Action, PostBody
+
 
 class HelpdeskClient:
-    """Read status, examples, and tickets from the API."""
+    """Read tickets and submit decisions to the helpdesk."""
 
     def __init__(self, client: httpx.Client):
         self.client = client
@@ -30,3 +32,9 @@ class HelpdeskClient:
             cursor = page.get("next_cursor")
             if cursor is None:
                 return tickets
+
+    def post_action(self, ticket_id: str, action: Action, body: PostBody) -> None:
+        response = self.client.post(
+            f"/tickets/{ticket_id}/{action}", json=body.model_dump(exclude_none=True)
+        )
+        response.raise_for_status()
