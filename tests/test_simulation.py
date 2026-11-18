@@ -91,6 +91,7 @@ def test_failure_logs_safe_error_and_continues(tmp_path, monkeypatch):
         {"id": "T003", "subject": "A", "body": "B", "customer_plan": "C"},
         {"id": "T005", "subject": "D", "body": "E", "customer_plan": "F"},
     ])
+    monkeypatch.setattr(client, "ticket", lambda ticket_id: {"id": ticket_id, "handled": False})
     monkeypatch.setattr(client, "post_action", lambda ticket_id, action, body: "delivered")
 
     log_path = tmp_path / "run.jsonl"
