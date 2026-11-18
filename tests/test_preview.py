@@ -31,7 +31,7 @@ def test_preview_sends_schema_and_excludes_labels(monkeypatch):
         assert kwargs["model"] == SETTINGS.llm_model
         ticket = json.loads(kwargs["messages"][1]["content"])["ticket"]
         assert set(ticket) == {"id", "subject", "body", "customer_plan"}
-        assert ticket["body"] == TICKET["body"]
+        assert "4111" not in ticket["body"]
         assert "F02" in kwargs["messages"][0]["content"]
         return response(json.dumps(DECISION))
 
