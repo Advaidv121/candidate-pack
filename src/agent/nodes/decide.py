@@ -4,7 +4,7 @@ import re
 
 from agent.clients.llm import build_messages, generate
 from agent.config import Settings
-from agent.schemas import LLMDecision
+from agent.schemas import LLMDecision, TicketInput
 from agent.state import TicketState
 
 
@@ -16,9 +16,9 @@ def protect(value):
 
 
 def decide(state: TicketState, settings: Settings) -> dict:
+    ticket_in = TicketInput.model_validate(state["ticket"])
     # Send only the fields the model needs; raw metadata stays local.
-    ticket = {key: state["ticket"][key]
-              for key in ("id", "subject", "body", "customer_plan")}
+    ticket = ticket_in.to_model_ticket().model_dump()
     ticket = {k: protect(v) for k, v in ticket.items()}
     response = generate(build_messages(ticket), settings)
     decision = LLMDecision.model_validate_json(response.choices[0].message.content or "")

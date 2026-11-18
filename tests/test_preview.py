@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from agent.config import Settings
 from agent.graph import build_preview_graph
-from agent.schemas import LLMDecision
+from agent.schemas import LLMDecision, ModelTicket, TicketInput, ExampleTicket
 
 
 SETTINGS = Settings("", "", "", "", "gemini/gemini-3.1-flash-lite",
@@ -112,3 +112,51 @@ def test_jev_failure_is_an_error_not_a_score(monkeypatch):
 def test_schema_rejects_invalid_action_fields_and_llm_confidence(changes):
     with pytest.raises(ValidationError):
         LLMDecision.model_validate({**DECISION, **changes})
+
+
+def test_ticket_input_schema_validation_and_model_extraction():
+    valid = {
+        "id": "T005",
+        "subject": "Nieuwe medewerker",
+        "body": "Hoe voeg ik toe?",
+        "channel": "email",
+        "customer_plan": "Basis",
+        "received_at": "2026-10-05T09:02:00+00:00",
+        "handled": None,
+    }
+    t = TicketInput.model_validate(valid)
+    assert t.id == "T005"
+    assert t.channel == "email"
+    assert t["subject"] == "Nieuwe medewerker"
+
+    # Only 4 fields must be passed to the model
+    mt = t.to_model_ticket()
+    assert mt.model_dump() == {
+        "id": "T005",
+        "subject": "Nieuwe medewerker",
+        "body": "Hoe voeg ik toe?",
+        "customer_plan": "Basis",
+    }
+
+    # Missing mandatory body raises validation error
+    with pytest.raises(ValidationError):
+        TicketInput.model_validate({"id": "T005", "subject": "Test"})
+
+
+def test_example_ticket_schema():
+    example_data = {
+        "id": "E03",
+        "subject": "Terugbetaling",
+        "body": "Kunnen we terugkrijgen?",
+        "label": {
+            "language": "nl",
+            "category": "billing",
+            "priority": "P2",
+            "action": "handoff",
+            "reason": "Refund request.",
+        },
+    }
+    ex = ExampleTicket.model_validate(example_data)
+    assert ex.label.action == "handoff"
+    # Even with a label, to_model_ticket() strips the label so it never enters the LLM
+    assert "label" not in ex.to_model_ticket().model_dump()

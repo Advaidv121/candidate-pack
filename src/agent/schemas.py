@@ -1,4 +1,4 @@
-"""Contracts. The LLM produces the full decision; Jev only adds `confidence`."""
+"""Contracts for inputs and outputs. The LLM produces the full decision; Jev only adds `confidence`."""
 from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -6,6 +6,55 @@ Action = Literal["reply", "handoff", "close"]
 Language = Literal["nl", "en", "de"]
 Category = Literal["bug", "billing", "feature_request", "question", "other"]
 Priority = Literal["P1", "P2", "P3", "P4"]
+Channel = Literal["email", "form", "chat"]
+
+
+class ModelTicket(BaseModel):
+    """The sanitized subset of ticket fields sent to the LLM prompt."""
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    id: str = Field(..., description="Ticket ID, e.g. T001")
+    subject: str = Field(..., description="Ticket subject line")
+    body: str = Field(..., description="Customer ticket body")
+    customer_plan: str = Field(default="Basis", description="Customer subscription plan, e.g. Basis or Plus")
+
+    def __getitem__(self, item: str):
+        return getattr(self, item)
+
+
+class TicketInput(ModelTicket):
+    """Full ticket payload as received from the Helpdesk API or fixtures."""
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
+
+    channel: Optional[Channel | str] = Field(default=None, description="Communication channel: email, form, chat")
+    received_at: Optional[str] = Field(default=None, description="ISO timestamp when ticket was received")
+    handled: Optional[bool | dict] = Field(default=None, description="Handling status on the server")
+
+    def to_model_ticket(self) -> ModelTicket:
+        """Extract only the 4 fields required by the model prompt."""
+        return ModelTicket(
+            id=self.id,
+            subject=self.subject,
+            body=self.body,
+            customer_plan=self.customer_plan,
+        )
+
+    def get(self, item: str, default=None):
+        return getattr(self, item, default)
+
+
+class ExampleLabel(BaseModel):
+    """Ground truth label structure from GET /examples."""
+    action: Action
+    language: Language
+    category: Category
+    priority: Priority
+    reason: str
+
+
+class ExampleTicket(TicketInput):
+    """Labelled benchmark ticket from GET /examples."""
+    label: Optional[ExampleLabel] = None
 
 
 class LLMDecision(BaseModel):
