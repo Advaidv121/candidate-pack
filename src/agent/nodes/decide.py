@@ -16,11 +16,13 @@ def protect(value):
 
 
 def decide(state: TicketState, settings: Settings) -> dict:
+    # Send only the fields the model needs; raw metadata stays local.
     ticket = {key: state["ticket"][key]
               for key in ("id", "subject", "body", "customer_plan")}
     ticket = {k: protect(v) for k, v in ticket.items()}
     response = generate(build_messages(ticket), settings)
     decision = LLMDecision.model_validate_json(response.choices[0].message.content or "")
+    # Mask echoed payment details before scoring or delivery.
     decision = LLMDecision.model_validate({k: protect(v) for k, v in decision.model_dump().items()})
     usage = {key: getattr(response.usage, key, 0) or 0
              for key in ("prompt_tokens", "completion_tokens", "total_tokens")}

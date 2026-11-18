@@ -22,6 +22,7 @@ RETRY = RetryPolicy(max_attempts=3, retry_on=transient)
 
 
 def score_with_retries(settings):
+    # Keep Jev retries separate so scoring failure cannot stop delivery.
     graph = StateGraph(TicketState)
     graph.add_node("jev", partial(score, settings=settings), retry_policy=RETRY)
     graph.add_edge(START, "jev").add_edge("jev", END)

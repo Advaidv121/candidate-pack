@@ -15,6 +15,7 @@ from agent.nodes.log import log
 def run_tickets(settings: Settings, client, log_path: Path,
                    ticket_ids: list[str] | None = None, with_score: bool = False) -> dict:
     live = isinstance(client, HelpdeskClient)
+    # Live reruns use server state; local runs use their outcome file.
     tickets = client.tickets(status="open" if live else "all")
     if ticket_ids:
         unknown = set(ticket_ids) - {ticket["id"] for ticket in tickets}

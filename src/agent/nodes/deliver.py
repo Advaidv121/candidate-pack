@@ -7,6 +7,7 @@ from agent.state import TicketState
 
 
 def deliver(state: TicketState, client) -> dict:
+    # The action belongs in the endpoint URL, not in the request body.
     fields = state["decision"].model_dump(exclude={"action"})
     fields["confidence"] = state.get("confidence")
     body = PostBody.model_validate(fields)
