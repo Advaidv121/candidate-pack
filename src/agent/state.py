@@ -13,3 +13,4 @@ class TicketState(TypedDict, total=False):
     scores: dict              # separate Jev checks for inspection
     outcome: str              # pending | simulated | skipped | error
     error: str                # exception type only
+    score_error: str

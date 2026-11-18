@@ -1,12 +1,20 @@
 """Map the existing decision to a simulated action and API-shaped body."""
-from agent.clients.fake_helpdesk import FakeHelpdeskClient
+import re
+
+from agent.clients.helpdesk import HelpdeskClient
 from agent.schemas import PostBody
 from agent.state import TicketState
 
 
-def act(state: TicketState, client: FakeHelpdeskClient) -> dict:
+def act(state: TicketState, client) -> dict:
     fields = state["decision"].model_dump(exclude={"action"})
     fields["confidence"] = state.get("confidence")
-    body = PostBody.model_validate(fields).model_dump(exclude_none=True)
+    body = PostBody.model_validate(fields)
+    if isinstance(client, HelpdeskClient):
+        payment = r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)|\b[A-Z]{2} ?\d{2}(?: ?[A-Z0-9]){11,30}\b"
+        if any(re.search(payment, value or "", re.I) for value in (body.reason, body.draft_reply, body.handoff_note)):
+            return {"outcome": "error", "error": "PaymentDetailsDetected"}
+        return {"outcome": client.post_action(state["ticket"]["id"], state["decision"].action, body)}
+    body = body.model_dump(exclude_none=True)
     return {"outcome": client.record(state["ticket"]["id"],
                                      state["decision"].action, body)}

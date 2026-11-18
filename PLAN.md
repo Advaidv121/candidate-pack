@@ -163,6 +163,10 @@ log entry.
 
 ## Step 7 — Add reliable delivery and the real helpdesk client
 
+Client checkpoint: ticket status lookup, request pacing, bounded 429/503 retries,
+409 handling, and server-state checks after a lost POST response passed offline
+checks. Live graph wiring and LangGraph model retries are still pending.
+
 - [ ] Extend the read-only `clients/helpdesk.py` with action posting and request
   pacing below the API limit. Add and test bounded 503 backoff and 429
   `Retry-After` handling, including transport failures. Treat 409

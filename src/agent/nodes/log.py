@@ -11,7 +11,7 @@ def log(state: TicketState, path: Path) -> dict:
              "ticket_id": state["ticket"]["id"], "outcome": state["outcome"]}
     if state.get("decision"):
         entry["action"] = state["decision"].action
-    for key in ("scores", "usage", "error"):
+    for key in ("scores", "usage", "error", "score_error"):
         if key in state:
             entry[key] = state[key]
     path.parent.mkdir(parents=True, exist_ok=True)
