@@ -1,18 +1,10 @@
 """Call the model and return a validated decision."""
 
-import re
-
 from agent.clients.llm import build_messages, generate
 from agent.config import Settings
+from agent.redaction import protect, redact
 from agent.schemas import LLMDecision, TicketInput
 from agent.state import TicketState
-
-
-def protect(value):
-    if not isinstance(value, str):
-        return value
-    return re.sub(r"(?<!\d)(?:\d[\s-]?){12,18}\d(?!\d)|\b[A-Z]{2}\s?\d{2}(?:\s?[A-Z0-9]){11,30}\b",
-                  "[payment detail removed]", value, flags=re.I)
 
 
 def decide(state: TicketState, settings: Settings) -> dict:

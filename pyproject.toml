@@ -2,7 +2,20 @@
 name = "helpdesk-agent"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["langgraph", "litellm", "langchain-litellm", "langfuse>=4.18,<5", "typesafe-sdk", "httpx", "pydantic>=2", "python-dotenv", "pyyaml", "pytest"]
+dependencies = [
+    "langgraph",
+    "litellm",
+    "langchain-litellm",
+    "langfuse>=4.18,<5",
+    "typesafe-sdk",
+    "httpx",
+    "pydantic>=2",
+    "python-dotenv",
+    "pyyaml",
+    "pytest",
+    "presidio-analyzer",
+    "presidio-anonymizer",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

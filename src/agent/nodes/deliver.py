@@ -1,6 +1,5 @@
 """Send the validated decision through the helpdesk client."""
-import re
-
+from agent.redaction import contains_payment_details
 from agent.schemas import PostBody
 from agent.state import TicketState
 
@@ -11,7 +10,6 @@ def deliver(state: TicketState, client) -> dict:
     fields["confidence"] = state.get("confidence")
     body = PostBody.model_validate(fields)
 
-    payment = r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)|\b[A-Z]{2} ?\d{2}(?: ?[A-Z0-9]){11,30}\b"
-    if any(re.search(payment, value or "", re.I) for value in (body.reason, body.draft_reply, body.handoff_note)):
+    if any(contains_payment_details(value) for value in (body.reason, body.draft_reply, body.handoff_note)):
         return {"outcome": "error", "error": "PaymentDetailsDetected"}
     return {"outcome": client.post_action(state["ticket"]["id"], state["decision"].action, body)}
