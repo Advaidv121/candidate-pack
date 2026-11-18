@@ -1,6 +1,6 @@
 ## How to run
 
-With Python 3.11+, run `python3 -m venv .venv` and `.venv/bin/pip install -e .`. Copy `.env.example` to `.env` and fill in Helpdesk credentials, `FAL_KEY` and, for scoring, `JEV_API_KEY`. Run `make run` for saved tickets and local outcomes, or `make run ARGS='--live --score'` to post to the configured helpdesk. Run `make test` for local checks and `.venv/bin/python eval/run_eval.py` for the labelled evaluation.
+With Python 3.11+, run `python3 -m venv .venv` and `.venv/bin/pip install -e .`. Copy `.env.example` to `.env` and fill in Helpdesk credentials, `FAL_KEY` and, for scoring, `JEV_API_KEY`. Run `make run` to post decisions to the configured helpdesk (or `make run ARGS='--score'` to add Jev scoring, and `make run ARGS='--reset'` to re-open tickets). Run `make test` for automated checks and `.venv/bin/python eval/run_eval.py` for the labelled evaluation.
 
 Preview without posting: `.venv/bin/python scripts/preview_ticket.py T005`. See `src/agent/graph.py` for the workflow, `src/agent/schemas.py` for the output fields, and `prompts/system.md` for the decision rules.
 

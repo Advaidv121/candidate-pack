@@ -1,6 +1,9 @@
 import json
+from unittest.mock import MagicMock
 
-from agent.clients.local_helpdesk import LocalHelpdeskClient
+import httpx
+
+from agent.clients.helpdesk import HelpdeskClient
 from agent.config import ROOT, Settings
 from agent.main import run_tickets
 from agent.schemas import LLMDecision
@@ -14,10 +17,32 @@ def decision(action):
                        handoff_note="Test note" if action == "handoff" else None)
 
 
-def test_30_tickets_persist_actions_and_rerun_skips_models(tmp_path, monkeypatch):
-    outcomes_path = tmp_path / "outcomes.json"
+def test_30_tickets_deliver_actions_and_rerun_skips(tmp_path, monkeypatch):
     log_path = tmp_path / "run.jsonl"
-    original = (ROOT / "fixtures/tickets.json").read_bytes()
+    raw_tickets = json.loads((ROOT / "fixtures/tickets.json").read_text())
+    # Create mutable copy of tickets for mock server
+    server_tickets = {t["id"]: dict(t) for t in raw_tickets}
+    delivered_actions = {}
+
+    client = HelpdeskClient(httpx.Client())
+
+    def mock_tickets(status="open"):
+        return [t for t in server_tickets.values() if not t.get("handled", False)]
+
+    def mock_ticket(ticket_id):
+        return server_tickets[ticket_id]
+
+    def mock_post_action(ticket_id, action, body):
+        if server_tickets[ticket_id].get("handled"):
+            return "already_handled"
+        server_tickets[ticket_id]["handled"] = True
+        delivered_actions[ticket_id] = {"action": action, "body": body.model_dump(exclude_none=True)}
+        return "delivered"
+
+    monkeypatch.setattr(client, "tickets", mock_tickets)
+    monkeypatch.setattr(client, "ticket", mock_ticket)
+    monkeypatch.setattr(client, "post_action", mock_post_action)
+
     calls = []
 
     def decide(state, settings):
@@ -27,30 +52,29 @@ def test_30_tickets_persist_actions_and_rerun_skips_models(tmp_path, monkeypatch
 
     monkeypatch.setattr("agent.graph.decide", decide)
     monkeypatch.setattr("agent.nodes.score.evaluate", lambda *args: {"action": 0.01})
-    first = run_tickets(SETTINGS, LocalHelpdeskClient(ROOT / "fixtures", outcomes_path),
-                           log_path, with_score=True)
-    assert first == {"simulated": 30, "skipped": 0, "error": 0}
-    saved = outcomes_path.read_bytes()
-    outcomes = json.loads(saved)
-    assert len(outcomes) == 30
-    assert {entry["action"] for entry in outcomes.values()} == {"reply", "handoff", "close"}
-    for entry in outcomes.values():
+
+    first = run_tickets(SETTINGS, client, log_path, with_score=True)
+    assert first == {"delivered": 30, "already_handled": 0, "uncertain": 0, "skipped": 0, "error": 0}
+    assert len(delivered_actions) == 30
+    assert {entry["action"] for entry in delivered_actions.values()} == {"reply", "handoff", "close"}
+
+    for entry in delivered_actions.values():
         body = entry["body"]
-        assert body["confidence"] == 0.01  # low score does not override action
+        assert body["confidence"] == 0.01
         assert "action" not in body
         assert ("draft_reply" in body) == (entry["action"] == "reply")
         assert ("handoff_note" in body) == (entry["action"] == "handoff")
 
+    # Second run: open tickets is empty
     def unexpected(*args, **kwargs):
         raise AssertionError("Already handled tickets must not call models")
 
     monkeypatch.setattr("agent.graph.decide", unexpected)
-    second = run_tickets(SETTINGS, LocalHelpdeskClient(ROOT / "fixtures", outcomes_path), log_path)
-    assert second == {"simulated": 0, "skipped": 30, "error": 0}
-    assert outcomes_path.read_bytes() == saved
-    assert (ROOT / "fixtures/tickets.json").read_bytes() == original
+    second = run_tickets(SETTINGS, client, log_path)
+    assert second == {"delivered": 0, "already_handled": 0, "uncertain": 0, "skipped": 0, "error": 0}
+
     entries = [json.loads(line) for line in log_path.read_text().splitlines()]
-    assert len(entries) == 60
+    assert len(entries) == 30
     assert all("body" not in entry and "reason" not in entry for entry in entries)
 
 
@@ -61,31 +85,22 @@ def test_failure_logs_safe_error_and_continues(tmp_path, monkeypatch):
         return {"decision": decision("reply")}
 
     monkeypatch.setattr("agent.graph.decide", decide)
-    client = LocalHelpdeskClient(ROOT / "fixtures", tmp_path / "outcomes.json")
+
+    client = HelpdeskClient(httpx.Client())
+    monkeypatch.setattr(client, "tickets", lambda status="open": [
+        {"id": "T003", "subject": "A", "body": "B", "customer_plan": "C"},
+        {"id": "T005", "subject": "D", "body": "E", "customer_plan": "F"},
+    ])
+    monkeypatch.setattr(client, "post_action", lambda ticket_id, action, body: "delivered")
+
     log_path = tmp_path / "run.jsonl"
     result = run_tickets(SETTINGS, client, log_path, ["T003", "T005"])
-    assert result == {"simulated": 1, "skipped": 0, "error": 1}
-    assert "T003" not in client.outcomes
+    assert result == {"delivered": 1, "already_handled": 0, "uncertain": 0, "skipped": 0, "error": 1}
     assert "Private" not in log_path.read_text()
     assert len(log_path.read_text().splitlines()) == 2
 
 
-def test_local_helpdesk_reset(tmp_path):
-    outcomes_path = tmp_path / "outcomes.json"
-    client = LocalHelpdeskClient(ROOT / "fixtures", outcomes_path)
-    client.record("T001", "reply", {"reason": "test"})
-    assert outcomes_path.exists()
-    assert "T001" in client.outcomes
-
-    client.reset()
-    assert not outcomes_path.exists()
-    assert client.outcomes == {}
-
-
 def test_helpdesk_client_reset(monkeypatch):
-    import httpx
-    from agent.clients.helpdesk import HelpdeskClient
-
     called = []
 
     def mock_request(self, method, path, **kwargs):
