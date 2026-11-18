@@ -12,6 +12,7 @@ from agent.nodes.skip_done import skip_done
 from agent.nodes.decide import decide
 from agent.nodes.score import score
 from agent.state import TicketState
+from agent.tracing import with_tracing
 
 
 def transient(error):
@@ -48,7 +49,7 @@ def build_preview_graph(settings: Settings, with_score: bool = False):
         graph.add_edge("score", END)
     else:
         graph.add_edge("decide", END)
-    return graph.compile()
+    return with_tracing(graph.compile())
 
 
 def build_delivery_graph(settings: Settings, client,
@@ -69,4 +70,4 @@ def build_delivery_graph(settings: Settings, client,
         graph.add_edge("decide", "deliver")
     graph.add_edge("deliver", "log")
     graph.add_edge("log", END)
-    return graph.compile()
+    return with_tracing(graph.compile())

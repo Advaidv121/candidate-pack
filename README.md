@@ -4,6 +4,8 @@ With Python 3.11+, run `python3 -m venv .venv` and `.venv/bin/pip install -e .`.
 
 Preview without posting: `.venv/bin/python scripts/preview_ticket.py T005`. See `src/agent/graph.py` for the workflow, `src/agent/schemas.py` for the output fields, and `prompts/system.md` for the decision rules.
 
+Optional Langfuse tracing: set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `LANGFUSE_HOST` to your project's region or self-hosted URL in `.env`. `LANGFUSE_BASE_URL` is also supported and takes precedence over `LANGFUSE_HOST`. Both preview and delivery graphs attach the callback automatically, and buffered traces flush at process exit. Set `LANGFUSE_TRACING_ENABLED=false` to disable tracing. Traces include graph inputs and outputs, including ticket content; only enable this for data permitted in your Langfuse project.
+
 ## Decisions
 
 LangGraph runs a validated Pydantic decision from DeepSeek V4.1 Flash via fal.ai and LiteLLM. It replies from the FAQ in the customer's language (including Dutch), hands off with an English note when required or unsupported, or closes spam. Jev adds optional action confidence; it never changes the decision.
