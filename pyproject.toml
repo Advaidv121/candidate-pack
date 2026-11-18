@@ -6,3 +6,6 @@ dependencies = ["langgraph", "litellm", "httpx", "pydantic>=2", "python-dotenv",
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

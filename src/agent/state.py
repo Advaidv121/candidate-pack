@@ -11,3 +11,5 @@ class TicketState(TypedDict, total=False):
     usage: dict               # token counts from the model call
     confidence: float         # Jev's probability the action fits the policy
     scores: dict              # separate Jev checks for inspection
+    outcome: str              # pending | simulated | skipped | error
+    error: str                # exception type only

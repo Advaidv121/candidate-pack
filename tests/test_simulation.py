@@ -1,0 +1,70 @@
+import json
+
+from agent.clients.fake_helpdesk import FakeHelpdeskClient
+from agent.config import ROOT, Settings
+from agent.main import run_simulation
+from agent.schemas import LLMDecision
+
+SETTINGS = Settings("", "", "", "", "test", {})
+
+
+def decision(action):
+    return LLMDecision(action=action, language="nl", category="other", priority="P4",
+                       reason="Test decision", draft_reply="Test reply" if action == "reply" else None,
+                       handoff_note="Test note" if action == "handoff" else None)
+
+
+def test_30_tickets_persist_actions_and_rerun_skips_models(tmp_path, monkeypatch):
+    outcomes_path = tmp_path / "outcomes.json"
+    log_path = tmp_path / "run.jsonl"
+    original = (ROOT / "fixtures/tickets.json").read_bytes()
+    calls = []
+
+    def draft(state, settings):
+        calls.append(state["ticket"]["id"])
+        action = ("reply", "handoff", "close")[len(calls) % 3]
+        return {"decision": decision(action), "model_ticket": state["ticket"]}
+
+    monkeypatch.setattr("agent.graph.draft", draft)
+    monkeypatch.setattr("agent.nodes.score.evaluate", lambda *args: {"action": 0.01})
+    first = run_simulation(SETTINGS, FakeHelpdeskClient(ROOT / "fixtures", outcomes_path),
+                           log_path, with_score=True)
+    assert first == {"simulated": 30, "skipped": 0, "error": 0}
+    saved = outcomes_path.read_bytes()
+    outcomes = json.loads(saved)
+    assert len(outcomes) == 30
+    assert {entry["action"] for entry in outcomes.values()} == {"reply", "handoff", "close"}
+    for entry in outcomes.values():
+        body = entry["body"]
+        assert body["confidence"] == 0.01  # low score does not override action
+        assert "action" not in body
+        assert ("draft_reply" in body) == (entry["action"] == "reply")
+        assert ("handoff_note" in body) == (entry["action"] == "handoff")
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("Already handled tickets must not call models")
+
+    monkeypatch.setattr("agent.graph.draft", unexpected)
+    second = run_simulation(SETTINGS, FakeHelpdeskClient(ROOT / "fixtures", outcomes_path), log_path)
+    assert second == {"simulated": 0, "skipped": 30, "error": 0}
+    assert outcomes_path.read_bytes() == saved
+    assert (ROOT / "fixtures/tickets.json").read_bytes() == original
+    entries = [json.loads(line) for line in log_path.read_text().splitlines()]
+    assert len(entries) == 60
+    assert all("body" not in entry and "reason" not in entry for entry in entries)
+
+
+def test_failure_logs_safe_error_and_continues(tmp_path, monkeypatch):
+    def draft(state, settings):
+        if state["ticket"]["id"] == "T003":
+            raise RuntimeError("Private provider request contents")
+        return {"decision": decision("reply")}
+
+    monkeypatch.setattr("agent.graph.draft", draft)
+    client = FakeHelpdeskClient(ROOT / "fixtures", tmp_path / "outcomes.json")
+    log_path = tmp_path / "run.jsonl"
+    result = run_simulation(SETTINGS, client, log_path, ["T003", "T005"])
+    assert result == {"simulated": 1, "skipped": 0, "error": 1}
+    assert "T003" not in client.outcomes
+    assert "Private" not in log_path.read_text()
+    assert len(log_path.read_text().splitlines()) == 2

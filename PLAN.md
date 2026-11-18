@@ -36,7 +36,7 @@ must never be passed to Gemini or Jev.
 - [x] Simple live reader in `clients/helpdesk.py` and fixture reader in
   `clients/fixtures.py`; capture
   script reuses the live reader. `scripts/inspect_tickets.py` reads fixtures by
-  default. Pagination and fixture filtering have two passing automated tests.
+  default.
 
 The preview graph works with three saved tickets tested on Gemini;
 DeepSeek V4.1 Flash through fal.ai is now the default and passed a live T005 preview; see
@@ -136,21 +136,25 @@ the user’s request; payment-detail protection remains an unmet delivery requir
 
 ## Step 6 — Connect the local LangGraph flow
 
-- [ ] Implement a fake helpdesk adapter backed by fixtures and a separate store of
+- [x] Implement a fake helpdesk adapter backed by fixtures and a separate store of
   simulated outcomes. Keep source fixtures unchanged.
-- [ ] Wire `graph.py`, `state.py`, and the nodes; `main.py` iterates ticket IDs.
-- [ ] Add preview mode that stops before posting, and simulation mode that sends
+- [x] Wire `graph.py`, `state.py`, and the nodes; `main.py` iterates tickets.
+  The runner loads saved tickets directly; no separate fetch node is needed yet.
+- [x] Add preview mode that stops before posting, and simulation mode that sends
   actions only to the fake client.
 - [ ] Write sanitized per-ticket logs, including skips and failures. Check replies,
   notes, reasons, and exception logs for payment details before saving/posting.
+  Outcome logs now contain IDs, outcomes, action, scores, usage, and exception
+  types only. Simulated payloads retain generated text; payment protection is
+  still unresolved. No redaction node was reintroduced.
 
 ```text
-START → fetch → skip_done
+Saved tickets → skip_done
                  ├─ already handled → log → END
                  └─ open → draft → score → act → log → END
 ```
 
-`draft` calls Gemini once and validates its output. `score` adds information. `act` selects
+`draft` calls the configured model once and validates its output. `score` adds information. `act` selects
 the endpoint using the action already present in the decision.
 
 **Review:** Inspect a complete trace and a simulation of the saved 30 tickets.
@@ -161,7 +165,7 @@ log entry.
 
 - [ ] Extend the read-only `clients/helpdesk.py` with action posting and request
   pacing below the API limit. Add and test bounded 503 backoff and 429
-  `Retry-After` handling in `retry.py`, including transport failures. Treat 409
+  `Retry-After` handling, including transport failures. Treat 409
   as already handled; do not retry it. Surface permanent errors.
 - [ ] Add `src/agent/ledger.py` for durable tracking. Also check server handled
   state: a local ledger alone cannot prove whether a timed-out POST was saved.
@@ -204,5 +208,10 @@ The 10-example evaluation does not establish broad accuracy.
 
 ## Current checkpoint
 
-The single-node preview and labelled baseline work. Review their output before
-adding Jev or live posting. Keep new code small and add behavior only when needed.
+Preview, Jev scoring, and local simulation are implemented. Run one sample with
+`make simulate ARGS='--ids T005 --score'`, or all saved tickets with
+`make simulate ARGS='--score'`. Actions persist in ignored
+`logs/simulation/outcomes.json`; each run appends metadata to run.jsonl.
+The real-model simulation finished all 30 tickets after retrying 10 unfinished tickets. A final rerun skipped all 30 before model calls. A new output directory starts
+a separate simulation. The fake client supports one runner at a time.
+Live helpdesk delivery and reliability remain Step 7.
