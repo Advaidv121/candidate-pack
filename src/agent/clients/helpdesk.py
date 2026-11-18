@@ -41,6 +41,11 @@ class HelpdeskClient:
     def examples(self) -> list[dict]:
         return self._get("/examples")["examples"]
 
+    def reset(self) -> dict:
+        response = self._request("POST", "/practice/reset")
+        response.raise_for_status()
+        return response.json() if response.content else {}
+
     def tickets(self, status: str = "open") -> list[dict]:
         tickets = []
         cursor = None

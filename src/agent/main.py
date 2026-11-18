@@ -42,6 +42,8 @@ def main():
     parser.add_argument("--ids", nargs="+", help="Only these saved ticket IDs")
     parser.add_argument("--score", action="store_true", help="Call Jev after generation")
     parser.add_argument("--live", action="store_true", help="Send actions to the real helpdesk")
+    parser.add_argument("--reset", action="store_true", help="Reset tickets and exit")
+    parser.add_argument("--reset", action="store_true", help="Reset tickets and exit")
     parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
     settings = load_settings()
@@ -51,6 +53,10 @@ def main():
     with connection as transport:
         client = (HelpdeskClient(transport) if args.live else
                   LocalHelpdeskClient(ROOT / "fixtures", output / "outcomes.json"))
+        if args.reset:
+            client.reset()
+            print("Reset tickets successfully.")
+            return
         counts = run_tickets(settings, client, output / "run.jsonl", args.ids, args.score)
     print(counts)
     if counts["error"] or counts.get("uncertain"):

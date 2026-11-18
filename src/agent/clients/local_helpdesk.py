@@ -14,6 +14,11 @@ class LocalHelpdeskClient(FixtureHelpdeskClient):
     def handled(self, ticket: dict) -> bool:
         return bool(ticket.get("handled")) or ticket["id"] in self.outcomes
 
+    def reset(self) -> None:
+        self.outcomes = {}
+        if self.outcomes_path.exists():
+            self.outcomes_path.unlink()
+
     def record(self, ticket_id: str, action: str, body: dict) -> str:
         if ticket_id in self.outcomes:
             return "skipped"
