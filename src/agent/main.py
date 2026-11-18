@@ -1,5 +1,6 @@
 """Deliver decisions to the helpdesk."""
 import argparse
+import json
 from pathlib import Path
 
 import httpx
@@ -17,6 +18,9 @@ def run_tickets(settings: Settings, client: HelpdeskClient, log_path: Path,
         tickets = [ticket for ticket in tickets if ticket["id"] in ticket_ids]
     graph = build_delivery_graph(settings, client, log_path, with_score)
     counts = {"delivered": 0, "already_handled": 0, "uncertain": 0, "skipped": 0, "error": 0}
+    if not tickets:
+        print("No open tickets matched the requested IDs." if ticket_ids
+              else "No open tickets to process.", flush=True)
     for ticket in tickets:
         try:
             state = graph.invoke({"ticket": ticket})
@@ -43,8 +47,15 @@ def main():
         if args.reset:
             client.reset()
             print("Reset tickets successfully.")
+            status = client.status()
+            print(json.dumps({"server": {key: status[key] for key in
+                                          ("open_tickets", "handled_tickets")}}, indent=2))
             return
         counts = run_tickets(settings, client, output / "run.jsonl", args.ids, args.score)
-    print(counts)
+        status = client.status()
+    print(json.dumps({
+        "server": {key: status[key] for key in ("open_tickets", "handled_tickets")},
+        "run": {"processed": sum(counts.values()), **counts},
+    }, indent=2))
     if counts["error"] or counts.get("uncertain"):
         raise SystemExit(1)
