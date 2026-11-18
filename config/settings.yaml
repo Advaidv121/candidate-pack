@@ -1,7 +1,5 @@
 helpdesk:
   timeout_s: 20
-  max_retries: 5
-  backoff_base_s: 1.0
 llm:
   model: openai/deepseek/deepseek-v4.1-flash
   api_base: https://fal.run/openrouter/router/openai/v1
