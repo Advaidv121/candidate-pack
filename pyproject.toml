@@ -13,6 +13,10 @@ dependencies = [
     "python-dotenv",
     "pyyaml",
     "pytest",
+]
+
+[project.optional-dependencies]
+presidio = [
     "presidio-analyzer",
     "presidio-anonymizer",
 ]
