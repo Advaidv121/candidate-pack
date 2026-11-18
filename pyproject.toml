@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "helpdesk-agent"
 version = "0.1.0"
@@ -5,6 +9,7 @@ requires-python = ">=3.11"
 dependencies = [
     "langgraph",
     "litellm",
+    "langchain",
     "langchain-litellm",
     "langfuse>=4.18,<5",
     "typesafe-sdk",
@@ -26,3 +31,5 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
+
