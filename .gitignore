@@ -2,7 +2,6 @@
 notes/
 eval/results/
 logs/*
-!logs/.gitkeep
 __pycache__/
 *.pyc
 .venv/
